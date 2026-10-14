@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:pointycastle/export.dart';
 
@@ -9,7 +10,7 @@ class CryptoService {
   static const int _pbkdf2Iterations = 200000;
   static const int _keyBits = 256;
 
-  static final SecureRandom _rng = SecureRandom();
+  static final Random _rng = Random.secure();
 
   static Uint8List _deriveKey(String password, Uint8List salt) {
     final pbkdf2 = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
@@ -19,7 +20,9 @@ class CryptoService {
 
   static Uint8List _randomBytes(int len) {
     final bytes = Uint8List(len);
-    _rng.nextBytes(bytes);
+    for (var i = 0; i < len; i++) {
+      bytes[i] = _rng.nextInt(256);
+    }
     return bytes;
   }
 
