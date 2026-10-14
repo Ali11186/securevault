@@ -71,14 +71,15 @@ class AppProvider extends ChangeNotifier {
         if (!await input.exists()) throw Exception('ملف غير موجود');
 
         if (mode == AppMode.encrypt) {
-          final out = File('$outputDirPath/${t.name}.encf');
+          // نفس الاسم بدون أي امتداد إضافي
+          final out = File('$outputDirPath/${t.name}');
           await CryptoService.encryptFile(
             input: input,
             output: out,
             originalName: t.name,
             password: password,
           );
-          t.message = 'اتحفظ';
+          t.message = 'اتحفظ في Ali';
         } else {
           final tmp = File('$outputDirPath/.dec_${DateTime.now().microsecondsSinceEpoch}');
           final name = await CryptoService.decryptFile(
@@ -100,7 +101,7 @@ class AppProvider extends ChangeNotifier {
       }
       notifyListeners();
 
-      // وقفة صغيرة بين الملفات عشان الجهاز مايسخنش
+      // وقفة صغيرة عشان الجهاز ما يسخنش
       await Future.delayed(const Duration(milliseconds: 120));
     }
 

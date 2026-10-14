@@ -23,8 +23,12 @@ class CryptoService {
   static const int _saltLen = 16;
   static const int _ivLen = 12;
   static const int _tagBits = 128;
-  static const int _pbkdf2Iterations = 200000;
+  static const int _pbkdf2Iterations = 250000;
   static const int _keyBits = 256;
+
+  // علامة سرية في آخر الملف — مش تجارية
+  static const List<int> _magic = [0x56, 0x4C, 0x54, 0x31]; // "VLT1"
+  static const int _version = 1;
 
   static Future<void> encryptFile({
     required File input,
@@ -32,7 +36,6 @@ class CryptoService {
     required String originalName,
     required String password,
   }) async {
-    // شغل الـ isolate في الخلفية — لا يسخّن الجهاز
     await Isolate.run(() => _encryptSync(
       _EncryptJob(input.path, output.path, originalName, password),
     ));
@@ -62,37 +65,53 @@ class CryptoService {
     final nameBytes = Uint8List.fromList(job.originalName.codeUnits);
     if (nameBytes.length > 0xFFFF) throw Exception('اسم الملف طويل جدًا');
 
-    final header = BytesBuilder();
-    header.add([0x45, 0x4E, 0x43, 0x46]);
-    header.addByte(1);
-    header.add(salt);
-    header.add(iv);
-    header.add([(nameBytes.length >> 8) & 0xFF, nameBytes.length & 0xFF]);
-    header.add(nameBytes);
-    header.add(encrypted);
+    final trailer = BytesBuilder();
+    trailer.add(salt);
+    trailer.add(iv);
+    trailer.add([(nameBytes.length >> 8) & 0xFF, nameBytes.length & 0xFF]);
+    trailer.add(nameBytes);
+    trailer.add([_version]);
+    trailer.add(_magic);
 
-    File(job.outputPath).writeAsBytesSync(header.toBytes(), flush: true);
+    final out = BytesBuilder();
+    out.add(encrypted);
+    out.add(trailer.toBytes());
+
+    File(job.outputPath).writeAsBytesSync(out.toBytes(), flush: true);
   }
 
   static String _decryptSync(_DecryptJob job) {
     final bytes = File(job.inputPath).readAsBytesSync();
-    if (bytes.length < 4 + 1 + _saltLen + _ivLen + 2 + 16) {
-      throw Exception('الملف صغير جدًا');
-    }
-    if (String.fromCharCodes(bytes.sublist(0, 4)) != 'ENCF') {
-      throw Exception('الملف ده مش ملف مشفّر بـ SecureVault');
-    }
-    if (bytes[4] != 1) throw Exception('نسخة غير مدعومة');
 
-    final salt = bytes.sublist(5, 5 + _saltLen);
-    final iv = bytes.sublist(5 + _saltLen, 5 + _saltLen + _ivLen);
-    final nameLenOff = 5 + _saltLen + _ivLen;
-    final nameLen = (bytes[nameLenOff] << 8) | bytes[nameLenOff + 1];
+    if (bytes.length < 16 + _saltLen + _ivLen + 2 + 1 + 1 + 4) {
+      throw Exception('الملف صغير جدًا أو تالف');
+    }
+
+    final magicStart = bytes.length - 4;
+    for (var i = 0; i < 4; i++) {
+      if (bytes[magicStart + i] != _magic[i]) {
+        throw Exception('الملف ده مش ملف مشفّر صالح');
+      }
+    }
+
+    var cursor = bytes.length - 4;
+    cursor -= 1;
+    if (bytes[cursor] != _version) throw Exception('نسخة غير مدعومة');
+
+    cursor -= 2;
+    final nameLen = (bytes[cursor] << 8) | bytes[cursor + 1];
     if (nameLen < 1 || nameLen > 0xFFFF) throw Exception('اسم ملف غير صالح');
 
-    final nameStart = nameLenOff + 2;
-    final originalName = String.fromCharCodes(bytes.sublist(nameStart, nameStart + nameLen));
-    final ciphertext = bytes.sublist(nameStart + nameLen);
+    cursor -= nameLen;
+    final originalName = String.fromCharCodes(bytes.sublist(cursor, cursor + nameLen));
+
+    cursor -= _ivLen;
+    final iv = bytes.sublist(cursor, cursor + _ivLen);
+
+    cursor -= _saltLen;
+    final salt = bytes.sublist(cursor, cursor + _saltLen);
+
+    final ciphertext = bytes.sublist(0, cursor);
 
     final key = _deriveKey(job.password, salt);
     final cipher = GCMBlockCipher(AESEngine())

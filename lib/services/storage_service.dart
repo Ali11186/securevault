@@ -5,13 +5,11 @@ class StorageService {
   static const _key = 'output_dir';
   static const String folderName = 'Ali';
 
-  /// بترجّع المجلد المحفوظ
   static Future<String?> getOutputDir() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_key);
     if (saved != null && await Directory(saved).exists()) return saved;
 
-    // الافتراضي: Documents/Ali
     try {
       final docs = Directory('/storage/emulated/0/Documents');
       if (await docs.exists()) {
@@ -20,6 +18,13 @@ class StorageService {
         await prefs.setString(_key, dir.path);
         return dir.path;
       }
+    } catch (_) {}
+
+    try {
+      final fallback = Directory('/storage/emulated/0/$folderName');
+      if (!await fallback.exists()) await fallback.create(recursive: true);
+      await prefs.setString(_key, fallback.path);
+      return fallback.path;
     } catch (_) {}
 
     return null;
