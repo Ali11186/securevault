@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../services/crypto_service.dart';
 import '../services/native_security.dart';
+import '../services/storage_service.dart';
 
 enum TaskStatus { pending, running, done, failed }
 enum AppMode { encrypt, decrypt }
@@ -35,9 +35,10 @@ class AppProvider extends ChangeNotifier {
   Future<void> pickFiles() async {
     final res = await FilePicker.platform.pickFiles(allowMultiple: true);
     if (res == null) return;
-    tasks = res.files.map((f) {
-      return FileTask(f.name, f.path ?? '', f.size);
-    }).toList();
+    tasks = res.files
+        .where((f) => f.path != null)
+        .map((f) => FileTask(f.name, f.path!, f.size))
+        .toList();
     notifyListeners();
   }
 
@@ -48,11 +49,8 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> prepareOutputDir() async {
     try {
-      final base = await getExternalStorageDirectory();
-      if (base == null) return;
-      final dir = Directory('${base.path}/SecureVault');
-      if (!await dir.exists()) await dir.create(recursive: true);
-      outputDirPath = dir.path;
+      final path = await StorageService.getOutputDir();
+      outputDirPath = path;
       notifyListeners();
     } catch (_) {}
   }
@@ -68,9 +66,9 @@ class AppProvider extends ChangeNotifier {
       notifyListeners();
 
       try {
-        if (t.path.isEmpty) throw Exception('file not found');
+        if (t.path.isEmpty) throw Exception('ملف غير موجود');
         final input = File(t.path);
-        if (!await input.exists()) throw Exception('file not found');
+        if (!await input.exists()) throw Exception('ملف غير موجود');
 
         if (mode == AppMode.encrypt) {
           final out = File('$outputDirPath/${t.name}.encf');
@@ -80,7 +78,7 @@ class AppProvider extends ChangeNotifier {
             originalName: t.name,
             password: password,
           );
-          t.message = 'saved';
+          t.message = 'اتحفظ';
         } else {
           final tmp = File('$outputDirPath/.dec_${DateTime.now().microsecondsSinceEpoch}');
           final name = await CryptoService.decryptFile(
@@ -91,15 +89,19 @@ class AppProvider extends ChangeNotifier {
           final finalOut = File('$outputDirPath/$name');
           if (await finalOut.exists()) await finalOut.delete();
           await tmp.rename(finalOut.path);
-          t.message = '-> $name';
+          t.message = '→ $name';
         }
         t.status = TaskStatus.done;
       } catch (e) {
         t.status = TaskStatus.failed;
-        final msg = e.toString();
-        t.message = msg.length > 80 ? msg.substring(0, 80) : msg;
+        var msg = e.toString().replaceFirst('Exception: ', '');
+        if (msg.length > 60) msg = '${msg.substring(0, 60)}…';
+        t.message = msg;
       }
       notifyListeners();
+
+      // وقفة صغيرة بين الملفات عشان الجهاز مايسخنش
+      await Future.delayed(const Duration(milliseconds: 120));
     }
 
     busy = false;

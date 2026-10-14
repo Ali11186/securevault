@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/app_provider.dart';
@@ -25,9 +26,22 @@ class SecureVaultApp extends StatelessWidget {
         ..prepareOutputDir()
         ..runSecurityChecks(),
       child: MaterialApp(
-        title: 'SecureVault',
+        title: 'الخزنة',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.dark(),
+        locale: const Locale('ar', 'EG'),
+        supportedLocales: const [Locale('ar', 'EG')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        builder: (context, child) {
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
         home: const HomeScreen(),
       ),
     );

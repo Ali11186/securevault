@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color bg = Color(0xFF0A0E1A);
-  static const Color surface = Color(0xFF131826);
-  static const Color accent = Color(0xFF4F8CFF);
-  static const Color accent2 = Color(0xFF7C4DFF);
-  static const Color danger = Color(0xFFFF4D6D);
+  static const Color bg = Color(0xFF0B1020);
+  static const Color surface = Color(0xFF161C2E);
+  static const Color surfaceHigh = Color(0xFF1F2740);
+  static const Color accent = Color(0xFF6E8EFF);
+  static const Color accent2 = Color(0xFF9D7BFF);
+  static const Color danger = Color(0xFFFF5C7A);
   static const Color success = Color(0xFF3DD68C);
-  static const Color text = Color(0xFFE8ECF4);
-  static const Color muted = Color(0xFF7A8299);
+  static const Color warn = Color(0xFFFFB84D);
+  static const Color text = Color(0xFFEEF1F8);
+  static const Color muted = Color(0xFF8A93A8);
 
   static ThemeData dark() {
     final base = ThemeData.dark(useMaterial3: true);
@@ -21,7 +23,7 @@ class AppTheme {
         surface: surface,
         error: danger,
       ),
-      textTheme: GoogleFonts.interTextTheme(base.textTheme).apply(
+      textTheme: GoogleFonts.cairoTextTheme(base.textTheme).apply(
         bodyColor: text,
         displayColor: text,
       ),
@@ -34,15 +36,6 @@ class AppTheme {
         color: surface,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: surface,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }
